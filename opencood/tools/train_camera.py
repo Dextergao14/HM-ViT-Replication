@@ -67,28 +67,30 @@ def main():
 
         train_loader = DataLoader(opencood_train_dataset,
                                   batch_sampler=batch_sampler_train,
-                                  num_workers=8,
-                                  collate_fn=opencood_train_dataset.collate_batch)
+                                  num_workers=0,
+                                  collate_fn=opencood_train_dataset.collate_batch,
+                                  pin_memory=True,)
         val_loader = DataLoader(opencood_val_dataset,
                                 sampler=sampler_val,
-                                num_workers=8,
+                                num_workers=0,
                                 collate_fn=opencood_train_dataset.collate_batch,
+                                pin_memory=True,
                                 drop_last=False)
     else:
         train_loader = DataLoader(opencood_train_dataset,
                                   batch_size=hypes['train_params'][
                                       'batch_size'],
-                                  num_workers=8,
+                                  num_workers=0,
                                   collate_fn=opencood_train_dataset.collate_batch,
                                   shuffle=True,
-                                  pin_memory=False,
+                                  pin_memory=True,
                                   drop_last=True)
         val_loader = DataLoader(opencood_val_dataset,
                                 batch_size=hypes['train_params']['batch_size'],
-                                num_workers=8,
+                                num_workers=0,
                                 collate_fn=opencood_train_dataset.collate_batch,
                                 shuffle=False,
-                                pin_memory=False,
+                                pin_memory=True,
                                 drop_last=True)
 
     print('---------------Creating Model------------------')

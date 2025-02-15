@@ -14,6 +14,10 @@ class RgbPreProcessor(BasePreprocessor):
         super(RgbPreProcessor, self).__init__(preprocess_params, train)
 
     def preprocess(self, rgb_image):
+
+        if not rgb_image is None:
+            rgb_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB)
+
         rgb_image = self.channel_swap(rgb_image)
         rgb_image = self.resize_image(rgb_image)
         rgb_image = self.normalize(rgb_image)
@@ -36,7 +40,7 @@ class RgbPreProcessor(BasePreprocessor):
         """
         Convert BGR to RGB if needed
         """
-        if self.params['args']['bgr2rgb']:
+        if self.params['args']['bgr2rgb'] and rgb_image is not None:
             rgb_image = cv2.cvtColor(rgb_image, cv2.COLOR_BGR2RGB)
         else:
             rgb_image = rgb_image

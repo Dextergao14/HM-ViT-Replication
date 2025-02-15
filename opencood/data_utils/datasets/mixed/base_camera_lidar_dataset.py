@@ -113,6 +113,8 @@ class BaseCameraLiDARDataset(basedataset.BaseDataset):
 
         # loop over all CAVs to process information
         for cav_id, selected_cav_base in base_data_dict.items():
+            if 'params' not in selected_cav_base:
+                continue
             # check if the cav is within the communication range with ego
             distance = common_utils.cav_distance_cal(selected_cav_base,
                                                      ego_lidar_pose)

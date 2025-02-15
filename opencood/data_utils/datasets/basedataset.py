@@ -5,6 +5,7 @@ Basedataset class for lidar data pre-processing
 import os
 import math
 import random
+import re
 from collections import OrderedDict
 
 import cv2
@@ -124,6 +125,34 @@ class BaseDataset(Dataset):
         Abstract method, needs to be define by the children class.
         """
         pass
+
+    import re
+
+    def fix_duplicated_path(self, path):
+        """
+        去除相邻的重复片段：
+          (train|validate)/yyyy_mm_dd_hh_mm_ss/vehicle_id
+          (train|validate)/yyyy_mm_dd_hh_mm_ss/vehicle_id
+        仅保留第一个。
+        """
+        # 1) 统一分隔符
+        path = path.replace("\\", "/")
+
+        # 2) 正则：捕获一次 (train|validate)/时间戳/车号
+        #    若后面重复多次同样的内容，就只留第一个
+        pattern = re.compile(
+            r"((?:train|validate)/\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}/\d{2,6})"
+            r"(?:/\1)+"
+        )
+
+        # 3) 循环替换，直到无法继续匹配
+        while True:
+            new_path = pattern.sub(r"\1", path)
+            if new_path == path:
+                break
+            path = new_path
+
+        return path
 
     def reinitialize(self):
         """
@@ -294,7 +323,10 @@ class BaseDataset(Dataset):
         for cav_id, cav_content in scenario_database.items():
             data[cav_id] = OrderedDict()
             data[cav_id]['ego'] = cav_content['ego']
-
+            # 检查timestamp_key是否存在
+            if timestamp_key not in cav_content:
+                print(f"Timestamp key {timestamp_key} not found in cav {cav_id}. Skipping.")
+                continue
             # calculate delay for this vehicle
             timestamp_delay = \
                 self.time_delay_calculation(cav_content['ego'])
@@ -419,6 +451,8 @@ class BaseDataset(Dataset):
 
         return timestamp_key
 
+
+
     def calc_dist_to_ego(self, scenario_database, timestamp_key):
         """
         Calculate the distance to ego for each cav.
@@ -429,6 +463,9 @@ class BaseDataset(Dataset):
         for cav_id, cav_content in scenario_database.items():
             if cav_content['ego']:
                 ego_cav_content = cav_content
+                print("Original YAML path:", cav_content[timestamp_key]['lidar_yaml'])
+                cav_content[timestamp_key]['lidar_yaml'] = self.fix_duplicated_path(cav_content[timestamp_key]['lidar_yaml'])
+                print("Fixed YAML path:", cav_content[timestamp_key]['lidar_yaml'])
                 ego_lidar_pose = \
                     load_yaml(cav_content[timestamp_key]['lidar_yaml'])[
                         'lidar_pose']
@@ -438,13 +475,21 @@ class BaseDataset(Dataset):
 
         # calculate the distance
         for cav_id, cav_content in scenario_database.items():
-            cur_lidar_pose = \
-                load_yaml(cav_content[timestamp_key]['lidar_yaml'])[
-                    'lidar_pose']
-            distance = \
-                math.sqrt((cur_lidar_pose[0] -
-                           ego_lidar_pose[0]) ** 2 +
-                          (cur_lidar_pose[1] - ego_lidar_pose[1]) ** 2)
+            print("cav content keys:", cav_content.keys())
+            # 检查timestamp_key是否存在
+            if timestamp_key not in cav_content:
+                print(f"Timestamp key {timestamp_key} not found in cav {cav_id}. Skipping.")
+                continue
+
+            print("cav content timestamp keys:", cav_content[timestamp_key].keys())
+            print("cav content timestamp - lidar_yaml value:", cav_content[timestamp_key]['lidar_yaml'])
+            data = load_yaml(cav_content[timestamp_key]['lidar_yaml'])
+            print("Loaded YAML keys:", list(data.keys()))
+            cur_lidar_pose = data['lidar_pose']
+            distance = math.sqrt(
+                (cur_lidar_pose[0] - ego_lidar_pose[0]) ** 2 +
+                (cur_lidar_pose[1] - ego_lidar_pose[1]) ** 2
+            )
             cav_content['distance_to_ego'] = distance
             scenario_database.update({cav_id: cav_content})
 
@@ -516,6 +561,7 @@ class BaseDataset(Dataset):
         The camera params dictionary.
         """
         camera_params = OrderedDict()
+
 
         cav_params = load_yaml(cav_content[timestamp]['camera_yaml'])
         ego_params = load_yaml(ego_content[timestamp]['camera_yaml'])

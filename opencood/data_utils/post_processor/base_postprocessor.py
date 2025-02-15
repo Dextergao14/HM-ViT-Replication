@@ -131,6 +131,8 @@ class BasePostprocessor(object):
 
         tmp_object_dict = {}
         for cav_content in cav_contents:
+            if 'params' not in cav_content:
+                continue
             tmp_object_dict.update(cav_content['params']['vehicles'])
 
         output_dict = {}

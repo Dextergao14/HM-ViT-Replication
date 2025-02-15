@@ -1,8 +1,12 @@
 name: cross_view_transformer_small_size # only used for demonstration data api
 #root_dir: '/home/runshengxu/project/OpenCOOD/opv2v_data_dumping/train'
 #validate_dir: '/home/runshengxu/project/OpenCOOD/opv2v_data_dumping/validate'
-root_dir: '/home/hao/dataset/opv2v/train'
-validate_dir: '/home/hao/dataset/opv2v/test'
+root_dir: 'C:/CARLA/Experiments/OtherProjects/HM-ViT/opv2v_data_dumping/train'
+validate_dir: 'C:/CARLA/Experiments/OtherProjects/HM-ViT/opv2v_data_dumping/validate'
+
+ego_mode: 'camera'
+
+camera_to_lidar_ratio: 0.5
 
 
 train_params:

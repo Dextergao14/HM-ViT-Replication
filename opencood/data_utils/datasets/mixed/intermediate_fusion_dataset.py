@@ -365,8 +365,20 @@ class CamLiIntermediateFusionDataset(
 
         # (B*L, M, H, W, C)
         # L: number of agents; M: number of camera per vehicle
-        cam_rgb_all_batch = torch.from_numpy(
-            np.concatenate(cam_rgb_all_batch, axis=0)).float()
+        cam_rgb_all_batch = [x for x in cam_rgb_all_batch if x is not None]
+
+        # 确保数组内部元素不是 None，并转换为 float32
+        cam_rgb_all_batch = [np.array(x, dtype=np.float32) if x.dtype == np.object_ else x for x in cam_rgb_all_batch]
+
+        print("cam_rgb_all_batch type:", type(cam_rgb_all_batch))
+        print("cam_rgb_all_batch element types:", [type(x) for x in cam_rgb_all_batch])
+        print("cam_rgb_all_batch:", cam_rgb_all_batch)
+
+        if len(cam_rgb_all_batch) == 0:
+            cam_rgb_all_batch = np.zeros((100, 800, 600, 3), dtype=np.float32)  # 用你项目的 W, H, C 替换
+        else:
+            cam_rgb_all_batch = torch.from_numpy(np.concatenate(cam_rgb_all_batch, axis=0)).float()
+
         cam_intrinsic_all_batch = torch.from_numpy(
             np.concatenate(cam_intrinsic_all_batch, axis=0)).float()
         cam_to_ego_all_batch = torch.from_numpy(

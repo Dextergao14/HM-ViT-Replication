@@ -1,3 +1,4 @@
+import argparse
 import copy
 import re
 import yaml
@@ -6,6 +7,44 @@ import math
 
 import numpy as np
 from mmcv import Config, DictAction
+
+# from opencood.data_utils.datasets import basedataset
+
+
+import re
+
+import re
+
+import re
+
+def fix_duplicated_path(path):
+    """
+    去除相邻的重复片段：
+      (train|validate)/yyyy_mm_dd_hh_mm_ss/vehicle_id
+      (train|validate)/yyyy_mm_dd_hh_mm_ss/vehicle_id
+    仅保留第一个。
+    """
+    # 1) 统一分隔符
+    path = path.replace("\\", "/")
+
+    # 2) 正则：捕获一次 (train|validate)/时间戳/车号
+    #    若后面重复多次同样的内容，就只留第一个
+    pattern = re.compile(
+        r"((?:train|validate)/\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}/\d{2,6})"
+        r"(?:/\1)+"
+    )
+
+    # 3) 循环替换，直到无法继续匹配
+    while True:
+        new_path = pattern.sub(r"\1", path)
+        if new_path == path:
+            break
+        path = new_path
+
+    return path
+
+
+
 
 
 def load_yaml(file, opt=None):
@@ -24,9 +63,21 @@ def load_yaml(file, opt=None):
     param : dict
         A dictionary that contains defined parameters.
     """
-    if opt and opt.model_dir:
+
+    if opt and hasattr(opt, 'model_dir'):
+        print("Model directory:", opt.model_dir)
         file = os.path.join(opt.model_dir, 'config.yaml')
 
+
+
+    # file = os.path.join(model_dir, 'config.yaml')
+
+    # print("Model directory:", opt.model_dir)
+    print("Trying to open:", file)
+    print("Before fix_duplicated_path:", file)
+
+    file = fix_duplicated_path(file)
+    print("After fix_duplicated_path:", file)
     stream = open(file, 'r')
     loader = yaml.Loader
     loader.add_implicit_resolver(
@@ -40,7 +91,9 @@ def load_yaml(file, opt=None):
         |\\.(?:nan|NaN|NAN))$''', re.X),
         list(u'-+0123456789.'))
     param = yaml.load(stream, Loader=loader)
+    print("file path before truncating:", file)
     fileDirname = "/".join(file.split("/")[:-1])
+    print("file path after truncating:", fileDirname)
     param['fileDirname'] = fileDirname
     if "yaml_parser" in param:
         yaml_parser = param["yaml_parser"]
@@ -49,6 +102,7 @@ def load_yaml(file, opt=None):
         if isinstance(yaml_parser, list):
             for parser in yaml_parser:
                 param = eval(parser)(param)
+    print("param is:", param)
     return param
 
 def load_voxel_params(param):

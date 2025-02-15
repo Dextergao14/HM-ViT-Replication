@@ -59,12 +59,14 @@ class RTE(nn.Module):
 
 class CavPositionalEncoding(nn.Module):
 
+
     def __init__(self, d_hid, cav_num=5):
         super(CavPositionalEncoding, self).__init__()
 
         # Not a parameter
         self.register_buffer('pos_table',
                              self._get_sinusoid_encoding_table(cav_num, d_hid))
+        self.norm = nn.LayerNorm(256)
 
     def _get_sinusoid_encoding_table(self, cav_num, d_hid):
         ''' Sinusoid position encoding table '''
@@ -109,12 +111,15 @@ class PreNormResidual(nn.Module):
 
 
 class PreNorm(nn.Module):
-    def __init__(self, dim, fn):
+    def __init__(self, dim, fn, hidden_dim=256):
         super().__init__()
         self.norm = nn.LayerNorm(dim)
         self.fn = fn
+        self.norm = nn.LayerNorm(hidden_dim)
 
     def forward(self, x, *args, **kwargs):
+        print(f"Input to LayerNorm shape: {x.shape}")
+        # return self.fn(self.norm(x), *args, **kwargs)
         return self.fn(self.norm(x), *args, **kwargs)
 
 
@@ -193,7 +198,7 @@ class HeteroFeedForward(BaseSimpleHetero):
 
 
 class FeedForward(nn.Module):
-    def __init__(self, dim, hidden_dim, dropout=0.):
+    def __init__(self, hidden_dim, dim=256, dropout=0.):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(dim, hidden_dim),
@@ -204,11 +209,12 @@ class FeedForward(nn.Module):
         )
 
     def forward(self, x):
+        print("x shape before FFN:", x.shape)
         return self.net(x)
 
 
 class CavAttention(nn.Module):
-    def __init__(self, dim, heads, dim_head=64, dropout=0.1):
+    def __init__(self, dim, heads, dim_head=64, dropout=0.1, hidden_dim=256):
         super().__init__()
         inner_dim = heads * dim_head
 
@@ -223,12 +229,20 @@ class CavAttention(nn.Module):
             nn.Dropout(dropout)
         )
 
+        self.norm = nn.LayerNorm(hidden_dim)
+
     def forward(self, x, mask, prior_encoding=None):
         # x: (B, L, H, W, C) -> (B, H, W, L, C)
         # mask: (B, L)
+
+        print("Type of x:", type(x), " shape:", x.shape)
+        x = self.norm(x)
+
         x = x.permute(0, 2, 3, 1, 4)
         # mask: (B, 1, H, W, 1, L)
         mask = mask.unsqueeze(1)
+
+        x = x[..., :128]  # 变形为适配 Linear
 
         # qkv: [(B, H, W, L, C_inner) *3]
         qkv = self.to_qkv(x).chunk(3, dim=-1)
@@ -240,9 +254,20 @@ class CavAttention(nn.Module):
         att_map = torch.einsum('b m h w i c, b m h w j c -> b m h w i j',
                                q, k) * self.scale
         # add mask
+        print("att_map shape:", att_map.shape)
+        print("mask shape:", mask.shape)
+
+        # mask = mask[:, :, :128, :, :, :]  # 只取前 128 维
+
+        att_map = att_map.repeat(1, 1, 2, 1, 1, 1)  # 扩展 128 -> 256
+
         att_map = att_map.masked_fill(mask == 0, -float('inf'))
         # softmax
         att_map = self.attend(att_map)
+
+
+        att_map = att_map[:, :, :128, :, :, :]
+        v = v[:, :, :128, :, :, :]  # 取前 128 维
 
         # out:(B, M, H, W, L, C_head)
         out = torch.einsum('b m h w i j, b m h w j c -> b m h w i c', att_map,
@@ -413,7 +438,13 @@ class BaseEncoder(nn.Module):
 
     def forward(self, x, mask):
         for attn, ff in self.layers:
-            x = attn(x, mask=mask) + x
+            print("Input x shape:", x.shape)
+            attn_out = attn(x, mask=mask)
+            print("attention out Output shape:", attn_out.shape)
+            # x = attn(x, mask=mask) + x
+            attn_out = attn_out.repeat(1, 1, 1, 1, 2)
+            print("attention out after repeat Output shape:", attn_out.shape)
+            x = attn_out + x
             x = ff(x) + x
         return x
 
