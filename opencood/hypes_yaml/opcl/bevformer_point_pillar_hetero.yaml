@@ -1,14 +1,14 @@
 name: bevformer_point_pillar_hetero_fixbackbone_mixed_ego_sequential # only used for demonstration data api
 #root_dir: '/home/jiaqi2/data/opv2v/train'
 #validate_dir: '/home/jiaqi2/data/opv2v/validate'
-root_dir: '/data/opv2v/train'
-validate_dir: '/data/opv2v/validate'
+root_dir: '../opv2v_data_dumping/train'
+validate_dir: '../opv2v_data_dumping/validate'
 #root_dir: '/home/hao/dataset/opv2v/train'
 #validate_dir: '/home/hao/dataset/opv2v/train'
 
 
-camera_to_lidar_ratio: 0
-ego_mode: 'lidar'
+camera_to_lidar_ratio: 0.5
+ego_mode: 'camera'
 
 yaml_parser: ["load_camera_point_pillar_params", "load_bevformer_param"]
 mmcv_file_path_ptr: ["model.args.camera.BEVFormer.mmcv_file_path"]

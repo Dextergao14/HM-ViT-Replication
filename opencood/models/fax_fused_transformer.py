@@ -35,10 +35,33 @@ class FaxFusedTransformer(nn.Module):
         self.return_features = True
 
     def forward(self, batch_dict):
-        batch_dict['camera'] = batch_dict['camera'].unsqueeze(1)
+        print("Original camera shape:", batch_dict['camera'].shape)
+
+        # **如果 `camera` 只有 (B, L)，扩展成 (B, L, H, W, C)**
+        if batch_dict['camera'].dim() == 2:  # 如果 shape 是 (B, 4)
+            M, H, W, C = 2, 512, 512, 3  # **确保 H, W, C 是你数据的真实大小**
+            batch_dict['camera'] = batch_dict['camera'].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)  # (B, L, 1, 1, 1, 1)
+            batch_dict['camera'] = batch_dict['camera'].expand(-1, -1, M, H, W, C)  # (B, L, H, W, C)
+
+        print("Camera shape AFTER HWC processing:", batch_dict['camera'].shape)
+
+        # batch_dict['camera'] = batch_dict['camera'].unsqueeze(1)
+
+        if batch_dict['camera'].dim() > 6:
+            batch_dict['camera'] = batch_dict['camera'].squeeze(-1)
+
         batch_dict['intrinsic'] = batch_dict['intrinsic'].unsqueeze(1)
         batch_dict['extrinsic'] = batch_dict['extrinsic'].unsqueeze(1)
         x = batch_dict['camera']
+        print("Camera shape AFTER 6D processing:", x.shape)
+
+
+
+
+
+        if x.dim() != 6:
+            raise ValueError(f"Expected 6D tensor, but got shape {x.shape}")
+
         b, l, m, _, _, _ = x.shape
         # (3,1,4,512,512,3)
         # (2,1,4,512,512,3)

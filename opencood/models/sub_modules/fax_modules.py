@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from torch import einsum
-from einops import rearrange, repeat, reduce
+from einops import rearrange, repeat, reduce, einops
 from torchvision.models.resnet import Bottleneck
 from typing import List
 
@@ -359,7 +359,9 @@ class CrossViewSwapAttention(nn.Module):
         d_embed = self.img_embed(d_flat)                                        # (b n) d h w
 
         img_embed = d_embed - c_embed                                           # (b n) d h w
-        img_embed = img_embed / (img_embed.norm(dim=1, keepdim=True) + 1e-7)    # (b n) d h w
+        img_embed = img_embed / (img_embed.norm(dim=1, keepdim=True) + 1e-7)
+        # 4 -> 8
+        img_embed = einops.repeat(img_embed, 'b d h w -> (b n) d h w', n=2)# (b n) d h w
 
         # todo: some hard-code for now.
         if index == 0:
@@ -371,16 +373,47 @@ class CrossViewSwapAttention(nn.Module):
         elif index == 3:
             world = bev.grid3[:2]
 
-        if self.bev_embed_flag:
-            # 2 H W
-            w_embed = self.bev_embed(world[None])                                   # 1 d H W
-            bev_embed = w_embed - c_embed                                           # (b n) d H W
-            bev_embed = bev_embed / (bev_embed.norm(dim=1, keepdim=True) + 1e-7)    # (b n) d H W
-            query_pos = rearrange(bev_embed, '(b n) ... -> b n ...', b=b, n=n)      # b n d H W
+        # if self.bev_embed_flag:
+        #     # 2 H W
+        #     w_embed = self.bev_embed(world[None])                                   # 1 d H W
+        #     bev_embed = w_embed - c_embed                                           # (b n) d H W
+        #     bev_embed = bev_embed / (bev_embed.norm(dim=1, keepdim=True) + 1e-7)    # (b n) d H W
+        #
+        #     real_batch_size = bev_embed.shape[0]  # 实际 batch size
+        #     n = 2  # 你期望的 n
+        #     b = real_batch_size // n  # 计算 b
+        #
+        #     if b * n != real_batch_size:
+        #         raise ValueError(f"Shape mismatch: Expected {b * n}, but got {real_batch_size}")
+        #
+        #     query_pos = rearrange(bev_embed, '(b n) ... -> b n ...', b=b, n=n)      # b n d H W
+        #
+        # feature_flat = rearrange(feature, 'b n ... -> (b n) ...')               # (b n) d h w
 
-        feature_flat = rearrange(feature, 'b n ... -> (b n) ...')               # (b n) d h w
+        if self.bev_embed_flag:
+            # `world` 经过 `bev_embed` 处理后变成 `(1, d, H, W)`
+            w_embed = self.bev_embed(world[None])  # shape: (1, d, H, W)
+
+            # `c_embed` 可能是 `(b*n, d, H, W)`，所以 `w_embed` 需要匹配 `b*n`
+            bev_embed = einops.repeat(w_embed, '1 d H W -> (b n) d H W', b=4, n=2)  # 变成 (8, d, H, W)
+            # 2) c_embed => (8, d, H, W)
+            c_embed = einops.repeat(c_embed, 'b d H W -> (b n) d H W', n=2)  # (8, d, H, W)
+
+            # 3) 做减法
+            bev_embed = bev_embed - c_embed  # (8, d, H, W)
+
+            # 4) 归一化
+            bev_embed = bev_embed / (bev_embed.norm(dim=1, keepdim=True) + 1e-7)  # (8, d, H, W)
+            print("bev_embed shape after fix:", bev_embed.shape)  # 应该是 (8, d, H, W)
+
+            query_pos = rearrange(bev_embed, '(b n) ... -> b n ...', b=4, n=2)  # 变成 (4, 2, d, H, W)
+
+        # 处理 feature
+        feature_flat = rearrange(feature, 'b n d h w -> (b n) d h w')  # shape: (8, d, h, w)
 
         if self.feature_proj is not None:
+            print("feature_proj shape after fix:", feature_flat.shape)
+            print("img_embed shape:", img_embed.shape)
             key_flat = img_embed + self.feature_proj(feature_flat)              # (b n) d h w
         else:
             key_flat = img_embed                                                # (b n) d h w

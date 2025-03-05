@@ -54,9 +54,9 @@ class CamLiPreprocessor(BasePreprocessor):
                                    "but received {type}. "
         output = None
 
-        if type == "lidar":
+        if type == "lidar" and data is not None:
             output = self.lidar_preprocessor.preprocess(data)
-        if type == "camera":
+        if type == "camera" and data is not None:
             output = self.camera_preprocessor.preprocess(data)
 
         return output

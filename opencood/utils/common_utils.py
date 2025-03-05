@@ -187,6 +187,11 @@ def cav_distance_cal(selected_cav_base, ego_lidar_pose):
     -------
     The distance of this two vehicle (float);
     """
+
+    print("selected_cav_base", selected_cav_base.keys())
+    if 'params' not in selected_cav_base:
+        return 0
+
     distance = \
         math.sqrt((selected_cav_base['params']['lidar_pose'][0] -
                    ego_lidar_pose[0]) ** 2 + (

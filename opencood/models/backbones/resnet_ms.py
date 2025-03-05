@@ -60,7 +60,7 @@ class ResnetEncoder(nn.Module):
             The deep features for each image with a shape of (B,L,M,C,H,W)
         """
         b, l, m, h, w, c = input_images.shape
-        input_images = input_images.view(b * l * m, h, w, c)
+        input_images = input_images = input_images.contiguous().reshape(b * l * m, h, w, c)
         # b, h, w, c -> b, c, h, w
         input_images = input_images.permute(0, 3, 1, 2).contiguous()
 

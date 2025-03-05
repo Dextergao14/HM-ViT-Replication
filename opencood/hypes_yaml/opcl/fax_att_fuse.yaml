@@ -1,13 +1,13 @@
 name: fax_att_fuse_resnet18 # only used for demonstration data api
 #root_dir: '/home/jiaqi2/data/opv2v/train'
 #validate_dir: '/home/jiaqi2/data/opv2v/validate'
-root_dir: '/data/opv2v/train'
-validate_dir: '/data/opv2v/validate'
+root_dir: 'C:/CARLA/Experiments/OtherProjects/HM-ViT/opv2v_data_dumping/train'
+validate_dir: 'C:/CARLA/Experiments/OtherProjects/HM-ViT/opv2v_data_dumping/validate'
 #root_dir: '/home/hao/dataset/opv2v/train'
 #validate_dir: '/home/hao/dataset/opv2v/train'
 ego_mode: 'camera'
 
-camera_to_lidar_ratio: 1
+camera_to_lidar_ratio: 0.5
 
 yaml_parser: "load_camera_point_pillar_params"
 train_params:
