@@ -21,3 +21,4 @@ pixor_data_utils/
 tmp/
 OpenCood.egg-info
 *.sh
+opv2v_data_dumping
